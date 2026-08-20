@@ -25,3 +25,4 @@ Proyek ini berisi *Cloudflare Worker* sebagai Proxy API Tomoro Coffee untuk mem-
 2.  Di bagian atas halaman, masukkan **URL Cloudflare Worker** yang telah Anda deploy tadi.
 3.  Dapatkan token WAF `acw_sc__v2` dari browser Anda (buka H5 App Tomoro Coffee, aktifkan F12 -> tab Network, cari request ke `getStoreList/v3`, lalu salin tokennya).
 4.  Masukkan token WAF ke kolom input yang tersedia di web, klik **Simpan & Mulai**, lalu mulailah mencari gerai dan mengunduh menu kopi pilihanmu!
+
