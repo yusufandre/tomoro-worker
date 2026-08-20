@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tomoro Coffee — Ordering & Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #C97B3A; --cream: #F7F2EC; --dark: #2C1A0E;
+  --cl: #F5E6D3; --cd: #9B5C26; --white: #fff;
+  --muted: #8A7968; --border: #E4D9CC;
+  --green: #2D6A4F; --rbg: #FDECEC; --gbg: #EAF7F1; --red: #9B2335;
+  --r: 16px; --rs: 10px;
+}
+body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--cream); color: var(--dark); min-height: 100vh; }
+header { background: var(--dark); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(44,26,14,0.15); }
+.logo { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--orange); user-select: none; }
+.logo span { color: var(--cream); }
+.search-wrap { display: flex; gap: 8px; flex: 1; max-width: 480px; }
+.search-wrap input { width: 100%; padding: 8px 14px; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--rs); font-size: 13px; outline: none; background: rgba(255,255,255,0.08); color: #fff; transition: border-color .15s; }
+.search-wrap input:focus { border-color: var(--orange); }
+.search-wrap input::placeholder { color: rgba(255,255,255,0.4); }
+.btn { padding: 8px 16px; border: none; border-radius: var(--rs); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; transition: background .15s; }
+.btn:hover { opacity: 0.9; }
+.search-wrap .btn { background: var(--orange); color: #fff; }
+.btn-cart { background: var(--orange); color: #fff; display: flex; align-items: center; gap: 6px; position: relative; }
+.btn-cart .cart-badge { position: absolute; top: -5px; right: -5px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--dark); }
+
+.container { max-width: 1000px; margin: 0 auto; padding: 24px 20px; }
+
+/* STATE MSGS */
+.state-msg { text-align: center; padding: 60px 20px; color: var(--muted); }
+.state-msg .icon { font-size: 40px; margin-bottom: 12px; }
+.state-msg p { font-size: 14px; }
+
+/* OUTLET GRID */
+.meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 13px; color: var(--muted); }
+.result-count strong { color: var(--dark); }
+.outlet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.outlet-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; cursor: pointer; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.outlet-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(44,26,14,0.1); border-color: var(--orange); }
+.outlet-img { width: 100%; height: 120px; object-fit: cover; background: var(--cl); display: block; }
+.outlet-body { padding: 11px 13px; }
+.outlet-name { font-weight: 600; font-size: 13px; margin-bottom: 3px; line-height: 1.4; }
+.outlet-addr { font-size: 11px; color: var(--muted); margin-bottom: 7px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.outlet-footer { display: flex; align-items: center; justify-content: space-between; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+.badge::before { content: '●'; font-size: 8px; }
+.badge.open { background: var(--gbg); color: var(--green); }
+.badge.closed { background: var(--rbg); color: var(--red); }
+.outlet-hours { font-size: 11px; color: var(--muted); }
+
+/* CATEGORY BADGE */
+.cat-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-bottom: 5px; }
+.cat-mall        { background: #E8F4FD; color: #1565C0; }
+
+/* DRAWER */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(44,26,14,0.5); z-index: 200; backdrop-filter: blur(2px); }
+.overlay.open { display: flex; align-items: flex-end; justify-content: center; }
+.drawer { background: var(--white); width: 100%; max-width: 720px; max-height: 90vh; border-radius: var(--r) var(--r) 0 0; display: flex; flex-direction: column; animation: su .25s ease; }
+@keyframes su { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.drawer-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0; }
+.drawer-head img { width: 54px; height: 54px; border-radius: var(--rs); object-fit: cover; background: var(--cl); flex-shrink: 0; }
+.dh-info { flex: 1; min-width: 0; }
+.dh-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+.dh-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.dh-badge { margin-top: 5px; }
+.drawer-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 2px 6px; flex-shrink: 0; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all .15s; }
+.tab.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+.drawer-body { overflow-y: auto; flex: 1; }
+
+/* TAB MENU */
+#tab-menu { padding: 14px 18px; }
+.menu-group-nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 14px; scrollbar-width: none; }
+.menu-group-nav::-webkit-scrollbar { display: none; }
+.gnav-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px; background: var(--white); font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all .15s; }
+.gnav-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+.menu-group-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--cd); margin: 16px 0 8px; }
+.menu-group-title:first-child { margin-top: 0; }
+
+.menu-list { display: flex; flex-direction: column; gap: 8px; }
+.menu-item { display: flex; align-items: center; gap: 12px; background: var(--cream); border: 1px solid var(--border); border-radius: var(--rs); padding: 10px 12px; transition: border-color .15s; }
+.menu-item:hover { border-color: var(--orange); }
+.menu-item.sold-out { opacity: 0.5; }
+.menu-img { width: 64px; height: 64px; border-radius: var(--rs); object-fit: cover; background: var(--cl); flex-shrink: 0; }
+.menu-info { flex: 1; min-width: 0; }
+.menu-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.menu-brand { font-size: 10px; color: var(--orange); font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
+.menu-desc { font-size: 11px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+.menu-right { text-align: right; flex-shrink: 0; }
+.menu-price { font-weight: 700; font-size: 13px; color: var(--cd); margin-bottom: 6px; }
+.btn-add { background: var(--orange); color: #fff; border: none; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-add:hover { background: var(--cd); }
+.sold-out-badge { display: inline-block; font-size: 11px; color: var(--muted); font-weight: 600; padding: 2px 6px; }
+
+/* DETAILS */
+.detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { font-weight: 600; color: var(--muted); }
+
+/* CART OVERLAY */
+.cart-overlay { display: none; position: fixed; inset: 0; background: rgba(44,26,14,0.5); z-index: 200; backdrop-filter: blur(2px); justify-content: flex-end; }
+.cart-overlay.open { display: flex; }
+.cart-panel { background: var(--white); width: 100%; max-width: 420px; height: 100vh; display: flex; flex-direction: column; box-shadow: -4px 0 30px rgba(0,0,0,0.15); animation: sl .25s ease; }
+@keyframes sl { from { transform: translateX(50px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.cart-head { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.cart-body { overflow-y: auto; flex: 1; padding: 16px 20px; }
+.cart-empty { text-align: center; color: var(--muted); padding-top: 80px; }
+.cart-outlet { font-size: 12px; color: var(--muted); margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.cart-item { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cart-item-img { width: 46px; height: 46px; border-radius: var(--rs); object-fit: cover; background: var(--cl); flex-shrink: 0; }
+.cart-item-info { flex: 1; min-width: 0; }
+.cart-item-name { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+.cart-item-price { font-size: 12px; color: var(--cd); font-weight: 600; }
+.qty-ctrl { display: flex; align-items: center; gap: 8px; }
+.qty-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 50%; background: var(--white); font-size: 16px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--dark); font-weight: 600; }
+.qty-btn:hover { background: var(--cl); border-color: var(--orange); }
+.qty-num { font-weight: 700; font-size: 14px; min-width: 20px; text-align: center; }
+.cart-foot { padding: 14px 18px; border-top: 1px solid var(--border); }
+.cart-summary { margin-bottom: 12px; }
+.cart-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+.cart-total { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+.cart-total-val { color: var(--cd); }
+.btn-checkout { width: 100%; padding: 12px; background: var(--orange); color: #fff; border: none; border-radius: var(--rs); font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-checkout:hover { background: var(--cd); }
+
+/* LOADING */
+.loading-dots span { display: inline-block; animation: blink 1.2s infinite; font-size: 20px; }
+.loading-dots span:nth-child(2) { animation-delay: .2s; }
+.loading-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" onclick="location.reload()" style="cursor:pointer">tomoro<span>coffee</span></div>
+  <div class="search-wrap">
+    <input id="kw" type="text" placeholder="Cari gerai... (wiyung, pluit, jakarta)" value="wiyung"
+      onkeydown="if(event.key==='Enter') search(1)" />
+    <button class="btn" onclick="search(1)">Cari</button>
+  </div>
+  <button class="btn btn-cart" onclick="openCart()" title="Keranjang">
+    🛍️ <span id="cart-label">Keranjang</span>
+    <span class="cart-badge" id="cart-badge" style="display:none"></span>
+  </button>
+</header>
+
+<div class="container">
+  <div id="main">
+    <div class="state-msg"><div class="loading-dots"><span>·</span><span>·</span><span>·</span></div><p style="margin-top:12px">Sedang memproses...</p></div>
+  </div>
+</div>
+
+<!-- OUTLET / MENU DRAWER -->
+<div class="overlay" id="overlay" onclick="closeOverlay(event)">
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <img id="dh-img" src="" onerror="this.style.display='none'" />
+      <div class="dh-info">
+        <div class="dh-title" id="dh-name">—</div>
+        <div class="dh-sub" id="dh-sub">—</div>
+        <div class="dh-badge" id="dh-badge"></div>
+      </div>
+      <button class="drawer-close" onclick="closeOverlay()">✕</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tab-btn-menu" onclick="switchTab('menu')">🍵 Menu</div>
+      <div class="tab" id="tab-btn-jadwal" onclick="switchTab('jadwal')">ℹ️ Detail Gerai</div>
+    </div>
+    <div class="drawer-body">
+      <div id="tab-menu"></div>
+      <div id="tab-jadwal" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CART PANEL -->
+<div class="cart-overlay" id="cart-overlay" onclick="closeCartOutside(event)">
+  <div class="cart-panel">
+    <div class="cart-head">
+      <h2>🛍️ Keranjang</h2>
+      <button class="drawer-close" onclick="closeCart()">✕</button>
+    </div>
+    <div class="cart-body" id="cart-body"></div>
+    <div class="cart-foot" id="cart-foot" style="display:none">
+      <div class="cart-summary" id="cart-summary"></div>
+      <button class="btn-checkout" onclick="checkout()">Pesan Sekarang →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentOutlet = null; 
+let cart = []; 
+
+const EXCLUDED_GROUPS = ["merchandise"];
+
+// Cari gerai default "wiyung" saat load pertama kali
+search(1);
+
+/**
+ * Panggil Local Proxy Server (server.js) yang berjalan di port 3000
+ * Ini akan sepenuhnya mem-bypass masalah CORS browser.
+ */
+async function callProxy(pathAndQuery) {
+  // Jika dibuka via http://localhost:3000 atau di-host di cloud, gunakan path relatif. 
+  // Jika dibuka via file:// (double-click file html), arahkan ke http://localhost:3000
+  const base = (window.location.protocol === 'file:' || window.location.origin === 'null') ? 'http://localhost:10000' : '';
+  const url = `${base}${pathAndQuery}`;
+  
+  const r = await fetch(url);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || `Gagal memuat data dari proxy (HTTP ${r.status})`);
+  }
+  return await r.json();
+}
+
+// ══════════════════════════════════════════
+// OUTLET SEARCH
+// ══════════════════════════════════════════
+async function search(p) {
+  const kw = document.getElementById('kw').value.trim();
+  const main = document.getElementById('main');
+  main.innerHTML = `<div class="state-msg"><div class="loading-dots"><span>·</span><span>·</span><span>·</span></div><p style="margin-top:12px">Mencari gerai "${kw}" (Pencarian pertama butuh ~4 detik untuk bypass)...</p></div>`;
+  
+  try {
+    const d = await callProxy(`/outlets?keyword=${encodeURIComponent(kw)}&page=${p}&page_size=12`);
+    
+    const outlets = d.outlets || [];
+    if (!outlets.length) { 
+      main.innerHTML = `<div class="state-msg"><div class="icon">🔍</div><p>Tidak ada gerai untuk "<strong>${kw}</strong>"</p></div>`; 
+      return; 
+    }
+
+    let html = `<div class="meta-row"><div class="result-count">Ditemukan <strong>${outlets.length.toLocaleString()} gerai</strong> untuk "${kw}"</div></div><div class="outlet-grid">`;
+    outlets.forEach(o => {
+      html += `<div class="outlet-card" onclick="openOutlet(${JSON.stringify(o).replace(/"/g,'&quot;')})">
+        <img class="outlet-img" src="${o.img||''}" onerror="this.style.background='#F5E6D3'" />
+        <div class="outlet-body">
+          <span class="cat-badge cat-mall">🏬 Gerai Tomoro</span>
+          <div class="outlet-name">${e(o.name)}</div>
+          <div class="outlet-addr">${e(o.address||'-')}</div>
+          <div class="outlet-footer">
+            <span class="badge ${o.isOpen?'open':'closed'}">${o.isOpen?'Buka':'Tutup'}</span>
+            <span class="outlet-hours">Telp: ${e(o.phone || '-')}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    main.innerHTML = html;
+  } catch(err) {
+    main.innerHTML = `<div class="state-msg">
+      <div class="icon">⚠️</div>
+      <p>${err.message}</p>
+      <p style="font-size:11px; margin-top:8px; color:var(--muted)">Pastikan server backend Anda sedang aktif dan terhubung.</p>
+    </div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// OUTLET DRAWER
+// ══════════════════════════════════════════
+function openOutlet(o) {
+  currentOutlet = o;
+  document.getElementById('dh-img').src = o.img || '';
+  document.getElementById('dh-img').style.display = '';
+  document.getElementById('dh-name').textContent = o.name;
+  document.getElementById('dh-sub').textContent = o.address || o.code;
+  document.getElementById('dh-badge').innerHTML = `<span class="badge ${o.isOpen?'open':'closed'}">${o.isOpen?'Buka':'Tutup'}</span>`;
+  
+  switchTab('menu');
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadMenu(o.code);
+  loadJadwal(o.code);
+}
+
+function closeOverlay(ev) {
+  if (ev && ev.target !== document.getElementById('overlay')) return;
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function switchTab(t) {
+  document.getElementById('tab-menu').style.display = t==='menu' ? '' : 'none';
+  document.getElementById('tab-jadwal').style.display = t==='jadwal' ? '' : 'none';
+  document.getElementById('tab-btn-menu').className = 'tab' + (t==='menu'?' active':'');
+  document.getElementById('tab-btn-jadwal').className = 'tab' + (t==='jadwal'?' active':'');
+}
+
+// ══════════════════════════════════════════
+// MENU
+// ══════════════════════════════════════════
+async function loadMenu(code) {
+  const el = document.getElementById('tab-menu');
+  el.innerHTML = `<div class="state-msg"><div class="loading-dots"><span>·</span><span>·</span><span>·</span></div><p style="margin-top:10px">Memuat menu...</p></div>`;
+  try {
+    const d = await callProxy(`/menu?code=${code}`);
+    const groups = d.groups || [];
+
+    if (!groups.length) { el.innerHTML = `<div class="state-msg">Menu tidak tersedia.</div>`; return; }
+
+    let navHtml = `<div class="menu-group-nav">`;
+    groups.forEach((g, i) => { navHtml += `<button class="gnav-btn${i===0?' active':''}" onclick="scrollToGroup('grp-${i}', this)">${e(g.name)}</button>`; });
+    navHtml += `</div>`;
+
+    let menuHtml = '';
+    groups.forEach((g, i) => {
+      menuHtml += `<div id="grp-${i}"><div class="menu-group-title">${e(g.name)}</div><div class="menu-list">`;
+      g.products.forEach(p => {
+        const isSO = p.isSoldOut;
+        menuHtml += `<div class="menu-item${isSO?' sold-out':''}">
+          <img class="menu-img" src="${e(p.image)}" onerror="this.style.background='#F5E6D3'" />
+          <div class="menu-info">
+            <div class="menu-name">${e(p.name)}</div>
+            ${p.brand?`<div class="menu-brand">${e(p.brand)}</div>`:''}
+            ${p.description?`<div class="menu-desc">${e(p.description)}</div>`:''}
+          </div>
+          <div class="menu-right">
+            <div class="menu-price">Rp ${p.price.toLocaleString('id-ID')}</div>
+            ${isSO
+              ? `<span class="sold-out-badge">Habis</span>`
+              : `<button class="btn-add" onclick='addToCart(${JSON.stringify(p).replace(/'/g,"&#39;")})'>+ Tambah</button>`
+            }
+          </div>
+        </div>`;
+      });
+      menuHtml += `</div></div>`;
+    });
+
+    el.innerHTML = navHtml + menuHtml;
+  } catch(err) {
+    el.innerHTML = `<div class="state-msg">⚠️ ${err.message}</div>`;
+  }
+}
+
+function scrollToGroup(id, btn) {
+  document.querySelectorAll('.gnav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ══════════════════════════════════════════
+// JADWAL & INFO TOKO
+// ══════════════════════════════════════════
+async function loadJadwal(code) {
+  const el = document.getElementById('tab-jadwal');
+  el.innerHTML = `<div class="state-msg"><div class="loading-dots"><span>·</span><span>·</span><span>·</span></div></div>`;
+  try {
+    const d = await callProxy(`/outlet-detail?code=${code}`);
+    const det = d?.data;
+    if (!det) { el.innerHTML = `<div class="state-msg">Detail tidak tersedia.</div>`; return; }
+
+    el.innerHTML = `<div style="padding:14px 18px">
+      <div class="detail-row"><span class="detail-label">Nama Gerai</span><span>${e(det.storeName||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">Alamat</span><span>${e(det.storeAddress||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">Telepon</span><span>${e(det.storePhone||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">Koordinat</span><span>${det.latitude}, ${det.longitude}</span></div>
+      <div class="detail-row"><span class="detail-label">Status Antar</span><span>${det.isDelivery === 1 ? 'Mendukung Delivery' : 'Hanya Take-away'}</span></div>
+    </div>`;
+  } catch(err) {
+    el.innerHTML = `<div class="state-msg">⚠️ ${err.message}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════
+// CART
+// ══════════════════════════════════════════
+function addToCart(product) {
+  const outletCode = currentOutlet?.code || '';
+  if (cart.length > 0 && cart[0]._outletCode !== outletCode) {
+    if (!confirm(`Keranjang berisi item dari gerai lain. Kosongkan dan tambah dari ${currentOutlet.name}?`)) return;
+    cart = [];
+  }
+
+  const existing = cart.find(c => c.product.productCode === product.productCode);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ product, qty: 1, _outletCode: outletCode });
+  }
+  updateCartBadge();
+  showCartToast(product.name);
+}
+
+function updateCartBadge() {
+  const total = cart.reduce((s, c) => s + c.qty, 0);
+  const badge = document.getElementById('cart-badge');
+  const label = document.getElementById('cart-label');
+  if (total > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = total > 9 ? '9+' : total;
+    label.textContent = `(${total})`;
+  } else {
+    badge.style.display = 'none';
+    label.textContent = 'Keranjang';
+  }
+}
+
+function showCartToast(name) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;z-index:400;animation:fadeInOut 2s ease forwards';
+  t.textContent = `✓ ${name} ditambahkan`;
+  document.body.appendChild(t);
+  const style = document.createElement('style');
+  style.textContent = '@keyframes fadeInOut{0%{opacity:0;transform:translateX(-50%) translateY(10px)}20%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0}}';
+  document.head.appendChild(style);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// CART PANEL
+function openCart() {
+  renderCart();
+  document.getElementById('cart-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCart() {
+  document.getElementById('cart-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeCartOutside(ev) {
+  if (ev.target === document.getElementById('cart-overlay')) closeCart();
+}
+
+function renderCart() {
+  const body = document.getElementById('cart-body');
+  const foot = document.getElementById('cart-foot');
+  const summary = document.getElementById('cart-summary');
+
+  if (!cart.length) {
+    body.innerHTML = `<div class="cart-empty">🛍️<br><br>Keranjang kosong.<br><small>Pilih gerai dan tambahkan menu.</small></div>`;
+    foot.style.display = 'none';
+    return;
+  }
+
+  const outletName = currentOutlet?.name || cart[0]?._outletCode || '-';
+  let html = `<div class="cart-outlet">Dari: <strong>${e(outletName)}</strong></div>`;
+  cart.forEach((c, i) => {
+    html += `<div class="cart-item">
+      <img class="cart-item-img" src="${e(c.product.image)}" onerror="this.style.background='#F5E6D3'" />
+      <div class="cart-item-info">
+        <div class="cart-item-name">${e(c.product.name)}</div>
+        <div class="cart-item-price">Rp ${(c.product.price * c.qty).toLocaleString('id-ID')}</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty(${i}, -1)">−</button>
+        <span class="qty-num">${c.qty}</span>
+        <button class="qty-btn" onclick="changeQty(${i}, 1)">+</button>
+      </div>
+    </div>`;
+  });
+  body.innerHTML = html;
+
+  const subtotal = cart.reduce((s, c) => s + c.product.price * c.qty, 0);
+  summary.innerHTML = `
+    <div class="cart-row"><span>Subtotal</span><span>Rp ${subtotal.toLocaleString('id-ID')}</span></div>
+    <div class="cart-row cart-total"><span>Total</span><span class="cart-total-val">Rp ${subtotal.toLocaleString('id-ID')}</span></div>
+  `;
+  foot.style.display = '';
+}
+
+function changeQty(i, delta) {
+  cart[i].qty += delta;
+  if (cart[i].qty <= 0) cart.splice(i, 1);
+  updateCartBadge();
+  renderCart();
+}
+
+function checkout() {
+  const total = cart.reduce((s, c) => s + c.product.price * c.qty, 0);
+  alert(`Total pesanan: Rp ${total.toLocaleString('id-ID')}\n\nPesanan Anda berhasil dibuat (Mock Checkout)! 🎉`);
+}
+
+function e(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

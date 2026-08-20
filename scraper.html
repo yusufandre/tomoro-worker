@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tomoro Coffee Menu Scraper</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --orange: #C97B3A; --cream: #F7F2EC; --dark: #2C1A0E;
+  --cl: #F5E6D3; --cd: #9B5C26; --white: #fff;
+  --muted: #8A7968; --border: #E4D9CC;
+  --green: #2D6A4F; --red: #9B2335;
+  --r: 12px; --rs: 8px;
+}
+body { font-family: 'Segoe UI', sans-serif; background: var(--cream); color: var(--dark); min-height: 100vh; }
+header { background: var(--dark); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 18px; font-weight: 800; color: var(--orange); }
+.logo span { color: var(--cream); }
+.subtitle { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.container { max-width: 980px; margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+/* CARDS */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.card-head h2 { font-size: 13px; font-weight: 700; color: var(--cd); }
+.card-body { padding: 16px 18px; }
+
+/* INPUTS */
+input, select { font-family: inherit; }
+.input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--rs); font-size: 13px; outline: none; background: var(--white); color: var(--dark); }
+.input:focus { border-color: var(--orange); }
+.input-row { display: flex; gap: 8px; align-items: center; }
+
+/* BUTTONS */
+.btn { padding: 8px 16px; border: none; border-radius: var(--rs); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; transition: background .15s, opacity .15s; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--orange); color: #fff; }
+.btn-primary:not(:disabled):hover { background: var(--cd); }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:not(:disabled):hover { background: #1b4d38; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:not(:disabled):hover { background: var(--cream); color: var(--dark); }
+.btn-danger { background: transparent; color: var(--red); border: 1px solid #f9d4d4; font-size: 12px; padding: 5px 10px; }
+.btn-danger:hover { background: #fff0f0; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+/* OUTLET LIST */
+.outlet-list { display: flex; flex-direction: column; gap: 8px; }
+.outlet-row { display: flex; align-items: center; gap: 10px; background: var(--cream); border: 1px solid var(--border); border-radius: var(--rs); padding: 10px 12px; }
+.outlet-row-num { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 20px; text-align: center; }
+.outlet-row-name { flex: 1; font-size: 13px; font-weight: 600; }
+.outlet-row-status { font-size: 11px; color: var(--muted); min-width: 140px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ddd; flex-shrink: 0; }
+.dot.idle    { background: #ddd; }
+.dot.loading { background: #FFB347; animation: pulse 1s infinite; }
+.dot.done    { background: var(--green); }
+.dot.error   { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ADD OUTLET */
+.add-outlet-box { border: 2px dashed var(--border); border-radius: var(--rs); padding: 12px 14px; }
+.add-outlet-hint { font-size: 11px; color: var(--muted); margin-top: 7px; }
+
+/* SEARCH SUGGESTIONS */
+.suggest-wrap { position: relative; }
+.suggest-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--white); border: 1px solid var(--border); border-radius: var(--rs); z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,.1); max-height: 220px; overflow-y: auto; margin-top: 4px; }
+.suggest-item { padding: 9px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.suggest-item:last-child { border-bottom: none; }
+.suggest-item:hover { background: var(--cream); }
+.suggest-item .s-name { font-weight: 600; }
+.suggest-item .s-addr { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.suggest-searching { padding: 10px 12px; font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* PROGRESS */
+.progress-wrap { height: 5px; background: var(--border); border-radius: 10px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--orange); border-radius: 10px; transition: width .3s; }
+
+/* LOG */
+.log-box { background: var(--dark); color: #a8c090; border-radius: var(--rs); padding: 12px 14px; font-size: 11px; font-family: monospace; line-height: 1.9; max-height: 140px; overflow-y: auto; }
+
+/* RESULTS TABLE */
+.filter-row { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-row .input { width: auto; flex: 1; min-width: 120px; }
+.filter-label { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead tr { background: var(--cl); }
+th { padding: 9px 12px; text-align: left; font-weight: 700; color: var(--cd); border-bottom: 2px solid var(--border); white-space: nowrap; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: var(--cream); }
+.img-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: var(--cl); display: block; }
+.pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.pill-outlet { background: #EAE4FF; color: #5B36B0; }
+.pill-cat    { background: var(--cl); color: var(--cd); }
+.price-cell  { font-weight: 700; color: var(--cd); white-space: nowrap; }
+.empty-cell  { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+
+@media(max-width:600px){
+  .filter-row { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">tomoro<span>coffee</span></div>
+    <div class="subtitle">Menu Scraper — Local & Cloud Version</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- OUTLET MANAGER -->
+  <div class="card">
+    <div class="card-head">
+      <h2>🏪 Daftar Outlet</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="clearAll()">Hapus Semua</button>
+        <button class="btn btn-primary btn-sm" id="btnScrape" onclick="startScrape()" disabled>▶ Ambil Menu</button>
+      </div>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- ADD OUTLET -->
+      <div class="add-outlet-box">
+        <div class="input-row">
+          <div class="suggest-wrap" style="flex:1">
+            <input class="input" id="addInput" type="text" placeholder="Ketik nama outlet Tomoro, misal: Landmark Pluit..." autocomplete="off"
+              oninput="onAddInput()" onkeydown="onAddKeydown(event)" />
+            <div class="suggest-list" id="suggestList" style="display:none"></div>
+          </div>
+          <button class="btn btn-primary" onclick="addManual()">+ Tambah</button>
+        </div>
+        <div class="add-outlet-hint">Ketik untuk mencari gerai di database Tomoro secara realtime</div>
+      </div>
+
+      <!-- LIST -->
+      <div class="outlet-list" id="outletList">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Belum ada outlet. Tambahkan di atas.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PROGRESS + LOG -->
+  <div class="card" id="progressCard" style="display:none">
+    <div class="card-head"><h2 id="progressTitle">Mengambil data...</h2></div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+      <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="card" id="resultsCard" style="display:none">
+    <div class="card-head">
+      <h2 id="resultsTitle">Hasil</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="exportExcel()">⬇ Excel</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportJSON()">⬇ JSON</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Filter:</span>
+      <select class="input" id="filterOutlet" onchange="renderTable()"><option value="">Semua Outlet</option></select>
+      <select class="input" id="filterCat" onchange="renderTable()"><option value="">Semua Kategori</option></select>
+      <input class="input" id="filterSearch" type="text" placeholder="Cari nama menu..." oninput="renderTable()" />
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Foto</th><th>Outlet</th><th>Kategori</th><th>Nama Menu</th>
+            <th>Brand</th><th>Harga</th><th>Harga Asli</th><th>Promo</th><th>Stok</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────
+let outlets = JSON.parse(localStorage.getItem('tomoro_outlets') || '[]');
+
+let allData = [];
+let suggestTimer = null;
+let suggestResults = [];
+let suggestIdx = -1;
+
+const EXCLUDED_GROUPS = ["merchandise"];
+
+// ─── INIT ─────────────────────────────────────────────
+renderOutletList();
+
+/**
+ * Panggil Local/Cloud Proxy Server (server.js) yang berjalan di port 3000
+ * Ini akan sepenuhnya mem-bypass masalah CORS browser.
+ */
+async function callProxy(pathAndQuery) {
+  const base = (window.location.protocol === 'file:' || window.location.origin === 'null') ? 'http://localhost:10000' : '';
+  const url = `${base}${pathAndQuery}`;
+  
+  const r = await fetch(url);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || `Gagal memuat data dari proxy (HTTP ${r.status})`);
+  }
+  return await r.json();
+}
+
+// ─── OUTLET MANAGEMENT ────────────────────────────────
+function saveOutlets() {
+  localStorage.setItem('tomoro_outlets', JSON.stringify(outlets));
+}
+
+function renderOutletList() {
+  const el = document.getElementById('outletList');
+  updateScrapeBtn();
+  if (!outlets.length) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Belum ada outlet. Tambahkan di atas.</div>`;
+    return;
+  }
+  el.innerHTML = outlets.map((o, i) => `
+    <div class="outlet-row" id="or-${o.id}">
+      <div class="outlet-row-num">${i+1}</div>
+      <div class="dot ${o.status||'idle'}" id="dot-${o.id}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="outlet-row-name">${esc(o.name)}</div>
+        ${o.code ? `<div style="font-size:10px;color:var(--muted)">Kode Toko: ${esc(o.code)}</div>` : ''}
+      </div>
+      <div class="outlet-row-status" id="st-${o.id}">${esc(o.statusMsg||'Siap')}</div>
+      <button class="btn btn-danger" onclick="removeOutlet('${o.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function updateScrapeBtn() {
+  document.getElementById('btnScrape').disabled = outlets.length === 0;
+}
+
+function addOutlet(name, keyword, code) {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  outlets.push({ id, name: name.trim(), keyword: keyword || name.trim(), code: code || '', status: 'idle', count: 0, statusMsg: 'Siap' });
+  saveOutlets();
+  renderOutletList();
+}
+
+function removeOutlet(id) {
+  outlets = outlets.filter(o => o.id !== id);
+  saveOutlets();
+  renderOutletList();
+}
+
+function clearAll() {
+  if (!outlets.length) return;
+  if (!confirm('Hapus semua outlet dari daftar?')) return;
+  outlets = [];
+  saveOutlets();
+  renderOutletList();
+}
+
+function addManual() {
+  const val = document.getElementById('addInput').value.trim();
+  if (!val) return;
+  closeSuggest();
+  addOutlet(val, val, '');
+  document.getElementById('addInput').value = '';
+}
+
+// ─── AUTOCOMPLETE ─────────────────────────────────────
+function onAddInput() {
+  const val = document.getElementById('addInput').value.trim();
+  clearTimeout(suggestTimer);
+  if (val.length < 2) { closeSuggest(); return; }
+  suggestTimer = setTimeout(() => fetchSuggestions(val), 350);
+}
+
+async function fetchSuggestions(kw) {
+  const list = document.getElementById('suggestList');
+  list.style.display = '';
+  list.innerHTML = `<div class="suggest-searching">Mencari "${kw}"...</div>`;
+  try {
+    const d = await callProxy(`/outlets?keyword=${encodeURIComponent(kw)}`);
+    suggestResults = d.outlets || [];
+    renderSuggestions();
+  } catch(e) {
+    list.innerHTML = `<div class="suggest-searching" style="color:var(--red);">${e.message}</div>`;
+  }
+}
+
+function renderSuggestions() {
+  const list = document.getElementById('suggestList');
+  if (!suggestResults.length) {
+    list.innerHTML = `<div class="suggest-searching">Tidak ditemukan hasil.</div>`;
+    return;
+  }
+  suggestIdx = -1;
+  list.innerHTML = suggestResults.map((s, i) => `
+    <div class="suggest-item" id="si-${i}" onclick="selectSuggest(${i})">
+      <div class="s-name">${esc(s.name)}</div>
+      <div class="s-addr">${esc(s.address||'-')}</div>
+    </div>
+  `).join('');
+}
+
+function closeSuggest() {
+  document.getElementById('suggestList').style.display = 'none';
+  suggestResults = [];
+  suggestIdx = -1;
+}
+
+function selectSuggest(i) {
+  const item = suggestResults[i];
+  if (!item) return;
+  addOutlet(item.name, item.name, item.code);
+  document.getElementById('addInput').value = '';
+  closeSuggest();
+}
+
+// Keydown suggests navigation
+function onAddKeydown(ev) {
+  const list = document.getElementById('suggestList');
+  if (list.style.display === 'none' || !suggestResults.length) return;
+  if (ev.key === 'ArrowDown') {
+    ev.preventDefault();
+    suggestIdx = (suggestIdx + 1) % suggestResults.length;
+    highlightSuggest();
+  } else if (ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    suggestIdx = (suggestIdx - 1 + suggestResults.length) % suggestResults.length;
+    highlightSuggest();
+  } else if (ev.key === 'Enter') {
+    ev.preventDefault();
+    if (suggestIdx >= 0) selectSuggest(suggestIdx);
+  } else if (ev.key === 'Escape') {
+    closeSuggest();
+  }
+}
+
+function highlightSuggest() {
+  document.querySelectorAll('.suggest-item').forEach((el, i) => {
+    el.style.background = i === suggestIdx ? 'var(--cl)' : '';
+  });
+}
+
+// Close suggest on click outside
+document.addEventListener('click', ev => {
+  if (!ev.target.closest('.suggest-wrap')) closeSuggest();
+});
+
+// ─── SCRAPING LOOP ────────────────────────────────────
+async function startScrape() {
+  if (!outlets.length) return;
+  allData = [];
+
+  document.getElementById('progressCard').style.display = '';
+  document.getElementById('resultsCard').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('btnScrape').disabled = true;
+
+  outlets.forEach(o => { o.status = 'idle'; o.statusMsg = 'Menunggu...'; o.count = 0; o.code = o.code || ''; });
+  renderOutletList();
+
+  log(`Mulai scraping ${outlets.length} gerai Tomoro Coffee (Bypass WAF)...`);
+
+  for (let i = 0; i < outlets.length; i++) {
+    const o = outlets[i];
+    setOutletStatus(o.id, 'loading', 'Mencari gerai...');
+    log(`[${i+1}/${outlets.length}] ${o.name}`);
+
+    try {
+      if (!o.code) {
+        const found = await findOutlet(o.keyword || o.name);
+        if (!found) throw new Error('Gerai tidak ditemukan');
+        o.code = found.code;
+        o.name = found.name;
+        log(`  ✓ Ketemu: ${found.name} (${found.code})`);
+      } else {
+        log(`  ✓ Kode gerai sudah ada: ${o.code}`);
+      }
+
+      setOutletStatus(o.id, 'loading', 'Mengambil menu...');
+
+      const md = await callProxy(`/menu?code=${o.code}`);
+      const groups = md.groups || [];
+
+      let count = 0;
+      groups.forEach(g => {
+        const products = g.products || [];
+        products.forEach(p => {
+          allData.push({
+            outlet_name: o.name, outlet_code: o.code,
+            category: g.name, name: p.name, brand: "Tomoro Coffee",
+            price: p.price, orig_price: p.price,
+            has_promo: p.hasPromo ? 'Ya' : 'Tidak',
+            is_sold_out: p.isSoldOut ? 'Habis' : 'Tersedia',
+            description: p.description || '',
+            image: p.image || '',
+            product_code: p.productCode || '',
+          });
+          count++;
+        });
+      });
+
+      o.count = count;
+      setOutletStatus(o.id, 'done', `${count} menu · ${groups.length} kategori`);
+      log(`  ✓ ${count} menu, ${groups.length} kategori`);
+
+    } catch(err) {
+      setOutletStatus(o.id, 'error', err.message);
+      log(`  ✗ ${err.message}`);
+    }
+
+    saveOutlets();
+    setProgress(Math.round((i+1) / outlets.length * 100));
+    await delay(300);
+  }
+
+  log(`\nSelesai! Total ${allData.length} baris data menu.`);
+  document.getElementById('progressTitle').textContent = `✓ Selesai — ${allData.length} item`;
+  document.getElementById('btnScrape').disabled = false;
+
+  if (allData.length) {
+    buildFilters();
+    renderTable();
+    document.getElementById('resultsCard').style.display = '';
+    document.getElementById('resultsTitle').textContent = `Data Menu — ${allData.length} item dari ${outlets.length} gerai`;
+  }
+}
+
+async function findOutlet(keyword) {
+  const d = await callProxy(`/outlets?keyword=${encodeURIComponent(keyword)}`);
+  const list = d.outlets || [];
+  if (!list.length) return null;
+  return list[0];
+}
+
+function setOutletStatus(id, status, msg) {
+  const o = outlets.find(x => x.id === id);
+  if (o) { o.status = status; o.statusMsg = msg; }
+  const dot = document.getElementById('dot-' + id);
+  const st  = document.getElementById('st-' + id);
+  if (dot) dot.className = 'dot ' + status;
+  if (st)  st.textContent = msg;
+}
+
+// Progress
+function setProgress(pct) {
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function log(msg) {
+  const box = document.getElementById('logBox');
+  box.innerHTML += `<div>> ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── FILTERS & TABLE ──────────────────────────────────
+// Build dynamic options for filters
+function buildFilters() {
+  const outletNames = [...new Set(allData.map(d => d.outlet_name))];
+  const cats = [...new Set(allData.map(d => d.category))].sort();
+  document.getElementById('filterOutlet').innerHTML =
+    '<option value="">Semua Outlet</option>' + outletNames.map(o => `<option>${esc(o)}</option>`).join('');
+  document.getElementById('filterCat').innerHTML =
+    '<option value="">Semua Kategori</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+}
+
+function renderTable() {
+  const outlet = document.getElementById('filterOutlet').value;
+  const cat    = document.getElementById('filterCat').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  const filtered = allData.filter(d =>
+    (!outlet || d.outlet_name === outlet) &&
+    (!cat    || d.category === cat) &&
+    (!search || d.name.toLowerCase().includes(search) || d.category.toLowerCase().includes(search))
+  );
+  const tbody = document.getElementById('tableBody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-cell">Tidak ada data.</td></tr>`; return;
+  }
+  tbody.innerHTML = filtered.map(d => `
+    <tr>
+      <td>${d.image ? `<img class="img-thumb" src="${esc(d.image)}" onerror="this.style.background='var(--cl)';this.removeAttribute('src')" loading="lazy">` : '<div class="img-thumb"></div>'}</td>
+      <td><span class="pill pill-outlet">${esc(d.outlet_name)}</span></td>
+      <td><span class="pill pill-cat">${esc(d.category)}</span></td>
+      <td style="font-weight:600;max-width:180px">${esc(d.name)}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(d.brand)}</td>
+      <td class="price-cell">Rp ${d.price.toLocaleString('id-ID')}</td>
+      <td style="font-size:11px;color:var(--muted)">${d.orig_price !== d.price ? 'Rp '+d.orig_price.toLocaleString('id-ID') : '-'}</td>
+      <td>${d.has_promo==='Ya' ? '<span style="color:var(--red);font-size:11px;font-weight:700">PROMO</span>' : '-'}</td>
+      <td>${d.is_sold_out==='Habis' ? '<span style="color:var(--muted);font-size:11px">Habis</span>' : '<span style="color:var(--green);font-size:11px">✓</span>'}</td>
+    </tr>`).join('');
+}
+
+// ─── EXPORT ───────────────────────────────────────────
+function exportExcel() {
+  if (!allData.length) return;
+  const header = ['Outlet','Kode Outlet','Kategori Menu','Nama Menu','Brand','Harga (Rp)','Harga Asli (Rp)','Promo','Stok','Deskripsi','URL Foto','Kode Produk'];
+  const rows = allData.map(d => [d.outlet_name,d.outlet_code,d.category,d.name,d.brand,d.price,d.orig_price,d.has_promo,d.is_sold_out,d.description,d.image,d.product_code]);
+  const wb = XLSX.utils.book_new();
+
+  const wsAll = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  wsAll['!cols'] = [{wch:28},{wch:16},{wch:22},{wch:35},{wch:18},{wch:14},{wch:14},{wch:8},{wch:10},{wch:40},{wch:60},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsAll, 'Semua Outlet');
+
+  [...new Set(allData.map(d => d.outlet_name))].forEach(name => {
+    const r = allData.filter(d => d.outlet_name === name).map(d => [d.outlet_name,d.outlet_code,d.category,d.name,d.brand,d.price,d.orig_price,d.has_promo,d.is_sold_out,d.description,d.image,d.product_code]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...r]);
+    ws['!cols'] = wsAll['!cols'];
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
+  });
+
+  XLSX.writeFile(wb, `tomoro_menu_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// JSON export
+function exportJSON() {
+  if (!allData.length) return;
+  const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `tomoro_menu_${new Date().toISOString().slice(0,10)}.json` });
+  a.click();
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

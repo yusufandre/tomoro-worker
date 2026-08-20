@@ -1,0 +1,17 @@
+{
+  "name": "tomoro-worker",
+  "version": "1.0.0",
+  "description": "Proyek ini berisi *Cloudflare Worker* sebagai Proxy API Tomoro Coffee untuk mem-bypass pemblokiran cors dan memformat data, serta aplikasi frontend web untuk melakukan pencarian gerai, penayangan menu, dan scraper data.",
+  "main": "worker.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "puppeteer": "^22.12.0"
+  }
+}
